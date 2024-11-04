@@ -49,6 +49,7 @@ export default class Login {
   handleSubmitAdmin = (e) => {
     e.preventDefault();
     const user = {
+      // Issue 2: Modification du type de l'utilisateur (employee -> Admin) + modification des data-testid
       type: "Admin",
       email: e.target.querySelector(`input[data-testid="admin-email-input"]`)
         .value,
