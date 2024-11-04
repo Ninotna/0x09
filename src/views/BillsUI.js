@@ -30,11 +30,11 @@ export default ({ data: bills, loading, error }) => {
   // Trier les bills par date du plus ancien au plus récent (conformément au test)
   const sortedBills =
     bills && bills.length
-      ? bills.sort((a, b) => new Date(b.date) - new Date(a.date))
+      ? bills.sort((a, b) => new Date(a.date) - new Date(b.date))
       : [];
 
   // console.log("test");
-
+  // console.log(bills);
   const modal = () => `
     <div class="modal fade" id="modaleFile" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -79,7 +79,7 @@ export default ({ data: bills, loading, error }) => {
               </tr>
           </thead>
           <tbody data-testid="tbody">
-            ${rows(sortedBills)}
+            ${rows(bills)}
           </tbody>
           </table>
         </div>
