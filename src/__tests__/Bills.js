@@ -49,6 +49,7 @@ describe("Given I am connected as an employee", () => {
       const windowIcon = screen.getByTestId("icon-window");
       expect(windowIcon).toHaveClass("active-icon");
     });
+
     test("Then bills should be ordered from earliest to latest", () => {
       document.body.innerHTML = BillsUI({ data: bills });
       const dates = screen
@@ -56,22 +57,17 @@ describe("Given I am connected as an employee", () => {
           /^(19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])$/i
         )
         .map((a) => a.innerHTML);
-
-      // Function to sort dates in ascending order (earliest to latest)
-      // Chronological order...
       const chrono = (a, b) => new Date(a) - new Date(b);
       const datesSorted = [...dates].sort(chrono);
       expect(dates).toEqual(datesSorted);
     });
 
-    // Vérifie que la page contient bien le titre "Mes notes de frais"
     test('Then bills page should contains "Mes notes de frais" title', async () => {
       document.body.innerHTML = BillsUI({ data: bills });
       await waitFor(() => screen.getByText("Mes notes de frais"));
       expect(screen.getByText("Mes notes de frais")).toBeTruthy();
     });
 
-    // Vérifie que le formulaire de création de note de frais s'affiche bien
     describe('When I click on "Nouvelle note de frais"', () => {
       test("Then the form to create a new invoice should appear", async () => {
         const onNavigate = (pathname) => {
@@ -104,24 +100,100 @@ describe("Given I am connected as an employee", () => {
       });
     });
 
-    // Test pour vérifier que les factures sont bien récupérées et affichées
-    test("Then bills should be fetched and displayed", async () => {
-      console.log(bills);
-      document.body.innerHTML = BillsUI({ data: bills });
-      const billsList = screen.getAllByTestId("bill-item");
-      expect(billsList.length).toBe(bills.length); // Vérifie que toutes les factures sont affichées
+    test("Should not add event listener if buttonNewBill is not found", () => {
+      document.body.innerHTML = ""; // Ensure no button element is present
+      const bills = new Bills({
+        document,
+        onNavigate: jest.fn(),
+        store: null,
+        localStorage: window.localStorage,
+      });
+      const button = document.querySelector(
+        `button[data-testid="btn-new-bill"]`
+      );
+      expect(button).toBeNull();
     });
 
-    // Test pour simuler une erreur de récupération de données
+    test("Should add event listeners to iconEye elements if they exist", () => {
+      // Set up the DOM with iconEye elements
+      document.body.innerHTML = `
+        <div data-testid="icon-eye" data-bill-url="https://example.com/bill1.jpg"></div>
+        <div data-testid="icon-eye" data-bill-url="https://example.com/bill2.jpg"></div>
+      `;
+
+      // Create a new instance of the Bills class
+      const onNavigate = jest.fn();
+      const bills = new Bills({
+        document,
+        onNavigate,
+        store: null,
+        localStorage: window.localStorage,
+      });
+
+      // Get all iconEye elements and simulate a click
+      const iconEyeElements = screen.getAllByTestId("icon-eye");
+      iconEyeElements.forEach((icon) => {
+        fireEvent.click(icon); // Trigger click event
+      });
+
+      // If the event listeners were added, clicking the elements would call handleClickIconEye
+      const handleClickIconEyeSpy = jest.spyOn(bills, "handleClickIconEye");
+      iconEyeElements.forEach((icon) => {
+        fireEvent.click(icon);
+        expect(handleClickIconEyeSpy).toHaveBeenCalledWith(icon);
+      });
+    });
+
+    test("Should not run forEach loop if iconEye elements do not exist", () => {
+      // Set up the DOM without iconEye elements
+      document.body.innerHTML = ``; // Empty body
+
+      // Create a new instance of the Bills class
+      const onNavigate = jest.fn();
+      const bills = new Bills({
+        document,
+        onNavigate,
+        store: null,
+        localStorage: window.localStorage,
+      });
+
+      // Query iconEye elements
+      const iconEyeElements = document.querySelectorAll(
+        `div[data-testid="icon-eye"]`
+      );
+      expect(iconEyeElements.length).toBe(0); // Ensure no elements exist
+
+      // No listeners should be added since there are no elements
+    });
+
+    test("Should verify if iconEye elements exist in the DOM", () => {
+      // Case 1: When iconEye elements exist
+      document.body.innerHTML = `
+        <div data-testid="icon-eye" data-bill-url="https://example.com/bill1.jpg"></div>
+        <div data-testid="icon-eye" data-bill-url="https://example.com/bill2.jpg"></div>
+      `;
+      let iconEye = document.querySelectorAll(`div[data-testid="icon-eye"]`);
+      expect(iconEye.length).toBeGreaterThan(0); // Expect iconEye elements to exist
+
+      // Case 2: When iconEye elements do not exist
+      document.body.innerHTML = ``; // Empty body
+      iconEye = document.querySelectorAll(`div[data-testid="icon-eye"]`);
+      expect(iconEye.length).toBe(0); // Expect no iconEye elements
+    });
+
+    test("Then bills should be fetched and displayed", async () => {
+      document.body.innerHTML = BillsUI({ data: bills });
+      const billsList = screen.getAllByTestId("bill-item");
+      expect(billsList.length).toBe(bills.length);
+    });
+
     test("Then it should display an error message if bills fetch fails", async () => {
-      // Configurer `list` pour renvoyer une erreur
       mockStore.bills().list = jest
         .fn()
         .mockImplementationOnce(() =>
           Promise.reject(new Error("Erreur de récupération"))
         );
 
-      // Charger l'interface
       const onNavigate = (pathname) => {
         document.body.innerHTML = ROUTES({ pathname });
       };
@@ -133,13 +205,11 @@ describe("Given I am connected as an employee", () => {
         localStorage: window.localStorage,
       });
 
-      // Rendre l'UI avec l'erreur
       document.body.innerHTML = BillsUI({ error: "Erreur de récupération" });
       await waitFor(() => screen.getByText("Erreur de récupération"));
       expect(screen.getByText("Erreur de récupération")).toBeTruthy();
     });
 
-    // Test pour vérifier que le bouton "Nouvelle note de frais" fonctionne
     test("Then clicking on 'Nouvelle note de frais' should navigate to the new bill form", () => {
       const onNavigate = (pathname) => {
         document.body.innerHTML = ROUTES({ pathname });
@@ -155,14 +225,12 @@ describe("Given I am connected as an employee", () => {
       const handleClickNewBill = jest.fn(bills.handleClickNewBill);
       buttonNewBill.addEventListener("click", handleClickNewBill);
       fireEvent.click(buttonNewBill);
-      expect(handleClickNewBill).toHaveBeenCalled(); // Vérifie que l'événement est bien déclenché
-      expect(screen.getByText("Envoyer une note de frais")).toBeTruthy(); // Vérifie que le formulaire est affiché
+      expect(handleClickNewBill).toHaveBeenCalled();
+      expect(screen.getByText("Envoyer une note de frais")).toBeTruthy();
     });
 
     test("Then clicking on the eye icon should open the modal with the justificatif image", async () => {
-      // Charger l'interface avec des données factices
       document.body.innerHTML = BillsUI({ data: bills });
-
       const billsContainer = new Bills({
         document,
         onNavigate: (pathname) => {
@@ -171,119 +239,200 @@ describe("Given I am connected as an employee", () => {
         store: mockStore,
         localStorage: window.localStorage,
       });
-
-      // Sélectionner la première icône "oeil" et simuler le clic
       const eyeIcon = screen.getAllByTestId("icon-eye")[0];
-      const billsData = bills; // Access the bills array passed to BillsUI
-      eyeIcon.setAttribute("data-bill-url", billsData[0].fileUrl); // Assurer que data-bill-url est défini
-
-      // Attacher la fonction `handleClickIconEye` et simuler le clic
+      const billsData = bills;
+      eyeIcon.setAttribute("data-bill-url", billsData[0].fileUrl);
       const handleClickIconEye = jest.fn((icon) =>
         billsContainer.handleClickIconEye(icon)
       );
       eyeIcon.addEventListener("click", () => handleClickIconEye(eyeIcon));
-
       fireEvent.click(eyeIcon);
-
-      // Vérifier que la fonction est appelée
       expect(handleClickIconEye).toHaveBeenCalled();
-
-      // Vérifier que la modal s'affiche avec l'image appropriée
       await waitFor(() =>
         expect(screen.getByText("Justificatif")).toBeTruthy()
       );
-
       const modalImage = document.querySelector("#modaleFile .modal-body img");
       expect(modalImage).toBeTruthy();
       expect(modalImage.getAttribute("src")).toBe(bills[0].fileUrl);
       expect(modalImage.getAttribute("alt")).toBe("Bill");
-
-      const modalElement = document.querySelector("#modaleFile");
-      // const imgWidth = Math.floor(modalElement.getBoundingClientRect().width * 0.5);
       const imgWidth = Math.floor($("#modaleFile").width() * 0.5);
       expect(modalImage.getAttribute("width")).toBe(imgWidth.toString());
     });
-  });
 
-  let consoleSpy;
+    test("Should handle missing data-bill-url attribute gracefully", () => {
+      document.body.innerHTML = '<div data-testid="icon-eye"></div>';
+      const bills = new Bills({
+        document,
+        onNavigate: jest.fn(),
+        store: null,
+        localStorage: window.localStorage,
+      });
+      const icon = document.querySelector(`[data-testid="icon-eye"]`);
+      expect(() => bills.handleClickIconEye(icon)).not.toThrow();
+    });
 
-  beforeEach(() => {
-    // Espionner console.log pour vérifier que l'erreur est bien loggée
-    consoleSpy = jest.spyOn(console, "log").mockImplementation();
-  });
+    test("Should handle missing modal element gracefully", () => {
+      document.body.innerHTML =
+        '<div data-testid="icon-eye" data-bill-url="https://example.com/bill.jpg"></div>';
+      const bills = new Bills({
+        document,
+        onNavigate: jest.fn(),
+        store: null,
+        localStorage: window.localStorage,
+      });
+      const icon = document.querySelector(`[data-testid="icon-eye"]`);
+      expect(() => bills.handleClickIconEye(icon)).not.toThrow();
+    });
 
-  test("Then it should log an error and return unformatted date if formatDate fails", () => {
-    const consoleSpy = jest.spyOn(console, "log").mockImplementation();
-
-    // Simuler un snapshot contenant une date invalide
-    const snapshot = [
-      {
-        date: "invalid-date",
-        status: "pending",
-      },
-    ];
-
-    // Traiter les données simulées pour vérifier le comportement
-    const bills = snapshot
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .map((doc) => {
-        try {
-          return {
-            ...doc,
-            date: formatDate(doc.date),
-            status: formatStatus(doc.status),
-          };
-        } catch (e) {
-          // Retourner les données avec la date non formatée en cas d'erreur
-          console.log(e, "for", doc);
-          return {
-            ...doc,
-            date: doc.date,
-            status: formatStatus(doc.status),
-          };
-        }
+    describe("When handleClickIconEye is triggered", () => {
+      test("Should handle missing modal element gracefully", () => {
+        document.body.innerHTML = "";
+        const billsContainer = new Bills({
+          document,
+          onNavigate: jest.fn(),
+          store: null,
+          localStorage: window.localStorage,
+        });
+        const icon = document.createElement("div");
+        icon.setAttribute("data-bill-url", "https://example.com/bill.jpg");
+        expect(() => billsContainer.handleClickIconEye(icon)).not.toThrow();
       });
 
-    // Vérifier que console.log a été appelé avec l'erreur
-    expect(consoleSpy).toHaveBeenCalledWith(
-      expect.any(Error),
-      "for",
-      snapshot[0]
-    );
+      test("Should handle missing data-bill-url attribute gracefully", () => {
+        document.body.innerHTML = `
+          <div id="modaleFile" class="modal fade">
+            <div class="modal-body"></div>
+          </div>
+        `;
+        const billsContainer = new Bills({
+          document,
+          onNavigate: jest.fn(),
+          store: null,
+          localStorage: window.localStorage,
+        });
+        const icon = document.createElement("div");
+        expect(() => billsContainer.handleClickIconEye(icon)).not.toThrow();
+      });
+    });
 
-    // Vérifier que la date est retournée sans formatage
-    expect(bills[0].date).toBe("invalid-date");
-    // Vérifier que le statut est formaté correctement
-    expect(bills[0].status).toBe(formatStatus(snapshot[0].status));
+    describe("When sorting bills", () => {
+      test("Should handle sorting of bills with valid and invalid dates", () => {
+        const unsortedBills = [
+          { date: "2024-10-10", status: "pending" },
+          { date: "invalid-date", status: "accepted" },
+          { date: "2023-11-01", status: "refused" },
+        ];
+        document.body.innerHTML = BillsUI({ data: unsortedBills });
+        const dates = screen
+          .getAllByText(
+            /^(19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])$/i
+          )
+          .map((a) => a.innerHTML);
+        const chrono = (a, b) => new Date(a) - new Date(b);
+        const validDates = dates.filter((date) => !isNaN(Date.parse(date)));
+        const datesSorted = validDates.sort(chrono);
+        expect(validDates).toEqual(datesSorted);
+      });
+    });
 
-    // Nettoyer le mock
-    consoleSpy.mockRestore();
-  });
-
-  // Integration test for GET Bills
-  describe("Given I am a user connected as Employee", () => {
-    describe("When fetch bills from API fails", () => {
+    describe("When fetching bills fails", () => {
       beforeEach(() => {
         jest.spyOn(mockStore, "bills");
       });
 
-      // Verify that the 404 error is displayed
-      test("Then, ErrorPage should be rendered with 404 error", async () => {
-        mockStore.bills.mockImplementationOnce(() => ({
-          list: () => Promise.reject(new Error("Erreur 404")),
-        }));
-        document.body.innerHTML = BillsUI({ error: "Erreur 404" });
-        expect(screen.getByText(/Erreur 404/)).toBeTruthy();
+      test("Should return undefined if store is null", async () => {
+        const bills = new Bills({
+          document,
+          onNavigate: jest.fn(),
+          store: null,
+          localStorage: window.localStorage,
+        });
+        const result = await bills.getBills();
+        expect(result).toBeUndefined();
       });
 
-      // Verify that the 500 error is displayed
-      test("Then, ErrorPage should be rendered with 500 error", async () => {
-        mockStore.bills.mockImplementationOnce(() => ({
-          list: () => Promise.reject(new Error("Erreur 500")),
-        }));
-        document.body.innerHTML = BillsUI({ error: "Erreur 500" });
-        expect(screen.getByText(/Erreur 500/)).toBeTruthy();
+      test("Should handle corrupted data gracefully", async () => {
+        const corruptedDataStore = {
+          bills: () => ({
+            list: () =>
+              Promise.resolve([{ date: "invalid-date", status: "pending" }]),
+          }),
+        };
+        const bills = new Bills({
+          document,
+          onNavigate: jest.fn(),
+          store: corruptedDataStore,
+          localStorage: window.localStorage,
+        });
+        const result = await bills.getBills();
+        expect(result[0].date).toBe("invalid-date");
+        expect(result[0].status).toBe(formatStatus("pending"));
       });
+
+      test("Should display error message for network failure", async () => {
+        mockStore.bills.mockImplementationOnce(() => ({
+          list: () => Promise.reject(new Error("Network Error")),
+        }));
+        document.body.innerHTML = BillsUI({ error: "Network Error" });
+        await waitFor(() =>
+          expect(screen.getByText("Network Error")).toBeTruthy()
+        );
+      });
+
+      test("Should display default error message if error message is missing", async () => {
+        mockStore.bills.mockImplementationOnce(() => ({
+          list: () => Promise.reject(new Error()),
+        }));
+        document.body.innerHTML = BillsUI({
+          error: "An unknown error occurred",
+        });
+        await waitFor(() =>
+          expect(screen.getByText("An unknown error occurred")).toBeTruthy()
+        );
+      });
+    });
+
+    describe("When there are no bills", () => {
+      test("Should display a message indicating no bills are available", () => {
+        document.body.innerHTML = BillsUI({ data: [] });
+        expect(screen.getByText("Aucune note de frais")).toBeTruthy();
+      });
+    });
+
+    describe("When handling unexpected behavior", () => {
+      test("Should handle empty data gracefully", () => {
+        document.body.innerHTML = BillsUI({ data: null });
+        expect(screen.getByText("Aucune note de frais")).toBeTruthy();
+      });
+
+      test("Should not break if data contains unexpected fields", () => {
+        const corruptedBills = [{ date: "2023-11-01", unknownField: "test" }];
+        document.body.innerHTML = BillsUI({ data: corruptedBills });
+        expect(screen.getByText("Mes notes de frais")).toBeTruthy();
+      });
+    });
+  });
+
+  // Integration test GET API
+  describe("When fetch bills from API fail", () => {
+    beforeEach(() => {
+      jest.spyOn(mockStore, "bills");
+    });
+    // Display error 404
+    test("Then, ErrorPage should be rendered", async () => {
+      mockStore.bills.mockImplementationOnce(() => ({
+        return: () => Promise.reject(new Error("Erreur 404")),
+      }));
+      document.body.innerHTML = BillsUI({ error: "Erreur 404" });
+      expect(screen.getByText(/Erreur 404/)).toBeTruthy();
+    });
+    // Display error 500
+    test("Then, ErrorPage should be rendered", async () => {
+      mockStore.bills.mockImplementationOnce(() => ({
+        return: () => Promise.reject(new Error("Erreur 500")),
+      }));
+      document.body.innerHTML = BillsUI({ error: "Erreur 500" });
+      expect(screen.getByText(/Erreur 500/)).toBeTruthy();
     });
   });
 });

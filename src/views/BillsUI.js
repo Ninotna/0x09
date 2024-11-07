@@ -1,7 +1,6 @@
 import VerticalLayout from "./VerticalLayout.js";
 import ErrorPage from "./ErrorPage.js";
 import LoadingPage from "./LoadingPage.js";
-
 import Actions from "./Actions.js";
 
 const row = (bill) => {
@@ -16,7 +15,7 @@ const row = (bill) => {
         ${Actions(bill.fileUrl)}
       </td>
     </tr>
-    `;
+  `;
 };
 
 const rows = (data) => {
@@ -25,18 +24,42 @@ const rows = (data) => {
   console.log("Generated rows:", result);
   return result;
 };
-export default ({ data: bills, loading, error }) => {
-  // Trier les bills par date du plus récent au plus ancien
-  // const sortedBills = bills.sort((a, b) => new Date(b.date) - new Date(a.date));
 
-  // Trier les bills par date du plus ancien au plus récent (conformément au test)
+export default ({ data: bills, loading, error }) => {
+  // If there is an error, render the error page
+  if (error) {
+    return ErrorPage(error);
+  }
+
+  // Sort bills by date from earliest to latest
   const sortedBills =
     bills && bills.length
       ? bills.sort((a, b) => new Date(a.date) - new Date(b.date))
       : [];
 
-  // console.log("test");
-  // console.log(bills);
+  // Handle cases where there are no bills
+  if (!bills || bills.length === 0) {
+    return `
+      <div class='layout'>
+        ${VerticalLayout(120)}
+        <div class='content'>
+          <div class='content-header'>
+            <div class='content-title'> Mes notes de frais </div>
+          </div>
+          <div id="data-table">
+            <p>Aucune note de frais</p>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  if (loading) {
+    return LoadingPage();
+  } else if (error) {
+    return ErrorPage(error);
+  }
+
   const modal = () => `
     <div class="modal fade" id="modaleFile" tabindex="-1" role="dialog" aria-labelledby="exampleModalCenterTitle" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
@@ -54,12 +77,6 @@ export default ({ data: bills, loading, error }) => {
     </div>
   `;
 
-  if (loading) {
-    return LoadingPage();
-  } else if (error) {
-    return ErrorPage(error);
-  }
-
   return `
     <div class='layout'>
       ${VerticalLayout(120)}
@@ -69,8 +86,8 @@ export default ({ data: bills, loading, error }) => {
           <button type="button" data-testid='btn-new-bill' class="btn btn-primary">Nouvelle note de frais</button>
         </div>
         <div id="data-table">
-        <table id="example" class="table table-striped" style="width:100%">
-          <thead>
+          <table id="example" class="table table-striped" style="width:100%">
+            <thead>
               <tr>
                 <th>Type</th>
                 <th>Nom</th>
@@ -79,13 +96,14 @@ export default ({ data: bills, loading, error }) => {
                 <th>Statut</th>
                 <th>Actions</th>
               </tr>
-          </thead>
-          <tbody data-testid="tbody">
-            ${rows(bills)}
-          </tbody>
+            </thead>
+            <tbody data-testid="tbody">
+              ${rows(sortedBills)}
+            </tbody>
           </table>
         </div>
       </div>
       ${modal()}
-    </div>`;
+    </div>
+  `;
 };
