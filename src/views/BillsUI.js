@@ -6,7 +6,7 @@ import Actions from "./Actions.js";
 
 const row = (bill) => {
   return `
-    <tr>
+    <tr data-testid="bill-item">
       <td>${bill.type}</td>
       <td>${bill.name}</td>
       <td>${bill.date}</td>
@@ -20,9 +20,11 @@ const row = (bill) => {
 };
 
 const rows = (data) => {
-  return data && data.length ? data.map((bill) => row(bill)).join("") : "";
+  const result =
+    data && data.length ? data.map((bill) => row(bill)).join("") : "";
+  console.log("Generated rows:", result);
+  return result;
 };
-
 export default ({ data: bills, loading, error }) => {
   // Trier les bills par date du plus récent au plus ancien
   // const sortedBills = bills.sort((a, b) => new Date(b.date) - new Date(a.date));
