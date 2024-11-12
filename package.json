@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "test": "jest --coverage --noStackTrace --silent"
+    "test": "jest --coverage --noStackTrace --silent",
+    "back": "cd .. && cd ./Billed-app-FR-Back  && npm run run:dev && cd"
   },
   "jest": {
     "verbose": false,
