@@ -56,8 +56,8 @@ export default class {
         .list()
         .then((snapshot) => {
           const bills = snapshot
-            //  Issue 1: Trier par date (du plus ancien au plus récent) earliest to latest...
-            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            //  Issue 1: Trier par date du latest to earliest...
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
             .map((doc) => {
               try {
                 return {

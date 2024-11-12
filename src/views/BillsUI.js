@@ -31,10 +31,10 @@ export default ({ data: bills, loading, error }) => {
     return ErrorPage(error);
   }
 
-  // Sort bills by date from earliest to latest
+  // Sort bills by date from latest to earliest
   const sortedBills =
     bills && bills.length
-      ? bills.sort((a, b) => new Date(a.date) - new Date(b.date))
+      ? bills.sort((a, b) => new Date(b.date) - new Date(a.date))
       : [];
 
   // Handle cases where there are no bills
