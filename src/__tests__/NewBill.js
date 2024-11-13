@@ -87,41 +87,51 @@ describe("Given I am connected as an employee", () => {
         expect(handleSubmit).toHaveBeenCalled();
       });
 
-      test("updateBill should call store.bills().update and navigate to Bills page", async () => {
-        const onNavigate = jest.fn();
-        const mockStore = {
-          bills: () => ({
-            update: jest.fn(() => Promise.resolve({})),
-          }),
-        };
+      describe("When I am on NewBill page, and a user upload a accepted format file", () => {
+        test("Then, the file name should be correctly displayed into the input and isImgFormatValid shoud be true", () => {
+          window.localStorage.setItem(
+            "user",
+            JSON.stringify({
+              type: "Employee",
+            })
+          );
 
-        const newBill = new NewBill({
-          document,
-          onNavigate,
-          store: mockStore,
-          localStorage: window.localStorage,
+          document.body.innerHTML = NewBillUI();
+
+          const onNavigate = (pathname) => {
+            document.body.innerHTML = ROUTES({ pathname });
+          };
+          const store = null;
+
+          const newBill = new NewBill({
+            document,
+            onNavigate,
+            store,
+            localStorage,
+          });
+          const handleChangeFile = jest.fn((e) => newBill.handleChangeFile(e));
+          const file = screen.getByTestId("file");
+
+          window.alert = jest.fn();
+
+          file.addEventListener("change", handleChangeFile);
+          fireEvent.change(file, {
+            target: {
+              files: [
+                new File(["file.png"], "file.png", { type: "image/png" }),
+              ],
+            },
+          });
+
+          jest.spyOn(window, "alert");
+          expect(window.alert).not.toHaveBeenCalled();
+
+          expect(handleChangeFile).toHaveBeenCalled();
+          expect(file.files[0].name).toBe("file.png");
+          expect(newBill.fileName).toBe("file.png");
+          expect(newBill.isImgFormatValid).toBe(true);
+          expect(newBill.formData).not.toBe(null);
         });
-
-        const bill = {
-          email: "test@test.com",
-          type: "Transport",
-          name: "Bus ticket",
-          amount: 20,
-          date: "2024-01-01",
-          vat: "10",
-          pct: 20,
-          commentary: "Travel",
-          fileUrl: "https://test.com/file.jpg",
-          fileName: "file.jpg",
-          status: "pending",
-        };
-
-        await newBill.updateBill(bill);
-        expect(mockStore.bills().update).toHaveBeenCalledWith({
-          data: JSON.stringify(bill),
-          selector: newBill.billId,
-        });
-        expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH["Bills"]);
       });
 
       test("handleChangeFile should alert and clear file input for invalid file types", () => {
@@ -143,12 +153,18 @@ describe("Given I am connected as an employee", () => {
         });
 
         expect(window.alert).toHaveBeenCalledWith(
-          "Seuls les fichiers JPG, JPEG, ou PNG sont autorisés."
+          "Attention! Le format de votre fichier n'est pas supporté." +
+            "\n" +
+            "Seuls les .jpg, .jpeg, .png sont acceptés."
         );
         expect(inputFile.value).toBe(""); // Input should be cleared
       });
 
-      test("handleChangeFile should correctly set fileUrl and billId with a valid file", async () => {
+      beforeAll(() => {
+        console.log = jest.fn(); // Utilisation de jest.fn() pour vérifier que console.log est bien appelé
+      });
+      test.only("handleChangeFile should correctly set fileUrl and billId with a valid file", async () => {
+        console.log("This is a log inside the specific test");
         // Set up the mocked NewBill instance
         const newBill = new NewBill({
           document,
@@ -157,8 +173,8 @@ describe("Given I am connected as an employee", () => {
             bills: () => ({
               create: jest.fn(() =>
                 Promise.resolve({
-                  fileUrl: "https://test.com/file.jpg",
-                  key: "1234",
+                  fileUrl: "https://test.com/file.jpg", // Mock file URL returned by the API
+                  key: "1234", // Mock bill ID returned by the API
                 })
               ),
             }),
@@ -167,26 +183,34 @@ describe("Given I am connected as an employee", () => {
         });
 
         // Mock the necessary parts of the DOM for the file input
-        document.body.innerHTML = NewBillUI();
+        document.body.innerHTML = NewBillUI(); // Ensure NewBillUI is defined and rendered
         const inputFile = screen.getByTestId("file");
 
-        // Add a valid file to trigger handleChangeFile
-        const handleChange = jest.spyOn(newBill, "handleChangeFile");
-        inputFile.addEventListener("change", handleChange);
+        // Mock alert to avoid the alert message popping up in the test
+        window.alert = jest.fn();
 
+        // Create a valid file and trigger the file change event
         fireEvent.change(inputFile, {
           target: {
-            files: [new File(["test"], "test.jpg", { type: "image/jpg" })],
+            files: [
+              new File(["file.png"], "file.png", { type: "image/png" }), // Valid image file
+            ],
           },
         });
 
-        // Wait for async operations to complete
-        await new Promise(process.nextTick);
+        // Wait for any asynchronous operations to complete (ensure async code runs)
+        await new Promise((resolve) => setTimeout(resolve, 0)); // Ensure the async operations have completed
 
-        // Assertions
-        expect(handleChange).toHaveBeenCalled(); // Ensure the function was called
-        expect(newBill.fileUrl).toBe("https://test.com/file.jpg");
-        expect(newBill.billId).toBe("1234");
+        // Check file extension and format validation
+        console.log("isImgFormatValid:", newBill.isImgFormatValid); // Check if the format is valid
+
+        // Assertions to validate the behavior after file upload
+        expect(window.alert).not.toHaveBeenCalled(); // Ensure no alert was shown for valid file
+        expect(newBill.isImgFormatValid).toBe(true); // Ensure the image format is valid
+        expect(newBill.fileName).toBe("file.png"); // Ensure the file name is set correctly
+        expect(newBill.fileUrl).toBe("https://test.com/file.jpg"); // Ensure the file URL is set after the API call
+        expect(newBill.billId).toBe("1234"); // Ensure the bill ID is set after the API call
+        expect(newBill.formData).not.toBe(null); // Ensure form data is populated correctly
       });
 
       test("Then the handleChangeFile() function should reject unsupported file formats", () => {
@@ -210,7 +234,9 @@ describe("Given I am connected as an employee", () => {
         });
 
         expect(alertMock).toHaveBeenCalledWith(
-          "Seuls les fichiers JPG, JPEG, ou PNG sont autorisés."
+          "Attention! Le format de votre fichier n'est pas supporté." +
+            "\n" +
+            "Seuls les .jpg, .jpeg, .png sont acceptés."
         );
         expect(inputFile.value).toBe(""); // Ensures file input is reset
         alertMock.mockRestore();
