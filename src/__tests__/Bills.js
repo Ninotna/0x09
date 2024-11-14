@@ -232,6 +232,12 @@ describe("Given I am connected as an employee", () => {
     });
   });
 
+  test("Then, there should be 4 eye icons displayed on the dashboard", () => {
+    document.body.innerHTML = BillsUI({ data: bills }); // Ensure `bills` contains 4 items
+    const eyeIcons = screen.getAllByTestId("icon-eye"); // Assuming each icon has `data-testid="icon-eye"`
+    expect(eyeIcons.length).toBe(4);
+  });
+
   describe("When there are no bills", () => {
     test("Should display a message indicating no bills are available", () => {
       document.body.innerHTML = BillsUI({ data: [] });
