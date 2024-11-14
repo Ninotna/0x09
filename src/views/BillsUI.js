@@ -19,16 +19,23 @@ const row = (bill) => {
 };
 
 const rows = (data) => {
-  const result =
-    data && data.length ? data.map((bill) => row(bill)).join("") : "";
-  // console.log("Generated rows:", result);
-  return result;
+  return data && data.length ? data.map((bill) => row(bill)).join("") : "";
 };
 
 export default ({ data: bills, loading, error }) => {
   // If there is an error, render the error page
   if (error) {
-    return ErrorPage(error);
+    return `
+      <div class='layout'>
+        ${VerticalLayout(120)}
+        ${ErrorPage(error)}
+      </div>
+    `;
+  }
+
+  // If loading is true, render loading page
+  if (loading) {
+    return LoadingPage();
   }
 
   // Sort bills by date from latest to earliest
@@ -52,12 +59,6 @@ export default ({ data: bills, loading, error }) => {
         </div>
       </div>
     `;
-  }
-
-  if (loading) {
-    return LoadingPage();
-  } else if (error) {
-    return ErrorPage(error);
   }
 
   const modal = () => `

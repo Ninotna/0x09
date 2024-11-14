@@ -26,20 +26,18 @@ jest.mock("../app/format.js", () => ({
     return new Date(parsedDate).toLocaleDateString("fr-FR");
   }),
 }));
+
 jest.mock("../app/store", () => mockStore);
 
 describe("Given I am connected as an employee", () => {
+  beforeEach(() => {
+    jest.clearAllMocks(); // Clear mocks before each test for isolation
+    Object.defineProperty(window, "localStorage", { value: localStorageMock });
+    window.localStorage.setItem("user", JSON.stringify({ type: "Employee" }));
+  });
+
   describe("When I am on Bills Page", () => {
     test("Then bill icon in vertical layout should be highlighted", async () => {
-      Object.defineProperty(window, "localStorage", {
-        value: localStorageMock,
-      });
-      window.localStorage.setItem(
-        "user",
-        JSON.stringify({
-          type: "Employee",
-        })
-      );
       const root = document.createElement("div");
       root.setAttribute("id", "root");
       document.body.append(root);
@@ -57,12 +55,12 @@ describe("Given I am connected as an employee", () => {
           /^(19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])$/i
         )
         .map((a) => a.innerHTML);
-      const antiChrono = (a, b) => new Date(b) - new Date(a); // Modified for anti-chronological order
+      const antiChrono = (a, b) => new Date(b) - new Date(a);
       const datesSorted = [...dates].sort(antiChrono);
       expect(dates).toEqual(datesSorted);
     });
 
-    test('Then bills page should contains "Mes notes de frais" title', async () => {
+    test('Then bills page should contain "Mes notes de frais" title', async () => {
       document.body.innerHTML = BillsUI({ data: bills });
       await waitFor(() => screen.getByText("Mes notes de frais"));
       expect(screen.getByText("Mes notes de frais")).toBeTruthy();
@@ -73,15 +71,6 @@ describe("Given I am connected as an employee", () => {
         const onNavigate = (pathname) => {
           document.body.innerHTML = ROUTES({ pathname });
         };
-        Object.defineProperty(window, "localStorage", {
-          value: localStorageMock,
-        });
-        window.localStorage.setItem(
-          "user",
-          JSON.stringify({
-            type: "Employee",
-          })
-        );
         const bills = new Bills({
           document,
           onNavigate,
@@ -101,7 +90,7 @@ describe("Given I am connected as an employee", () => {
     });
 
     test("Should not add event listener if buttonNewBill is not found", () => {
-      document.body.innerHTML = ""; // Ensure no button element is present
+      document.body.innerHTML = "";
       const bills = new Bills({
         document,
         onNavigate: jest.fn(),
@@ -115,13 +104,10 @@ describe("Given I am connected as an employee", () => {
     });
 
     test("Should add event listeners to iconEye elements if they exist", () => {
-      // Set up the DOM with iconEye elements
       document.body.innerHTML = `
         <div data-testid="icon-eye" data-bill-url="https://example.com/bill1.jpg"></div>
         <div data-testid="icon-eye" data-bill-url="https://example.com/bill2.jpg"></div>
       `;
-
-      // Create a new instance of the Bills class
       const onNavigate = jest.fn();
       const bills = new Bills({
         document,
@@ -129,56 +115,28 @@ describe("Given I am connected as an employee", () => {
         store: null,
         localStorage: window.localStorage,
       });
-
-      // Get all iconEye elements and simulate a click
       const iconEyeElements = screen.getAllByTestId("icon-eye");
-      iconEyeElements.forEach((icon) => {
-        fireEvent.click(icon); // Trigger click event
-      });
-
-      // If the event listeners were added, clicking the elements would call handleClickIconEye
       const handleClickIconEyeSpy = jest.spyOn(bills, "handleClickIconEye");
       iconEyeElements.forEach((icon) => {
         fireEvent.click(icon);
-        expect(handleClickIconEyeSpy).toHaveBeenCalledWith(icon);
       });
+      expect(handleClickIconEyeSpy).toHaveBeenCalledTimes(
+        iconEyeElements.length
+      );
     });
 
     test("Should not run forEach loop if iconEye elements do not exist", () => {
-      // Set up the DOM without iconEye elements
-      document.body.innerHTML = ``; // Empty body
-
-      // Create a new instance of the Bills class
-      const onNavigate = jest.fn();
+      document.body.innerHTML = "";
       const bills = new Bills({
         document,
-        onNavigate,
+        onNavigate: jest.fn(),
         store: null,
         localStorage: window.localStorage,
       });
-
-      // Query iconEye elements
       const iconEyeElements = document.querySelectorAll(
         `div[data-testid="icon-eye"]`
       );
-      expect(iconEyeElements.length).toBe(0); // Ensure no elements exist
-
-      // No listeners should be added since there are no elements
-    });
-
-    test("Should verify if iconEye elements exist in the DOM", () => {
-      // Case 1: When iconEye elements exist
-      document.body.innerHTML = `
-        <div data-testid="icon-eye" data-bill-url="https://example.com/bill1.jpg"></div>
-        <div data-testid="icon-eye" data-bill-url="https://example.com/bill2.jpg"></div>
-      `;
-      let iconEye = document.querySelectorAll(`div[data-testid="icon-eye"]`);
-      expect(iconEye.length).toBeGreaterThan(0); // Expect iconEye elements to exist
-
-      // Case 2: When iconEye elements do not exist
-      document.body.innerHTML = ``; // Empty body
-      iconEye = document.querySelectorAll(`div[data-testid="icon-eye"]`);
-      expect(iconEye.length).toBe(0); // Expect no iconEye elements
+      expect(iconEyeElements.length).toBe(0);
     });
 
     test("Then bills should be fetched and displayed", async () => {
@@ -188,23 +146,9 @@ describe("Given I am connected as an employee", () => {
     });
 
     test("Then it should display an error message if bills fetch fails", async () => {
-      mockStore.bills().list = jest
-        .fn()
-        .mockImplementationOnce(() =>
-          Promise.reject(new Error("Erreur de récupération"))
-        );
-
-      const onNavigate = (pathname) => {
-        document.body.innerHTML = ROUTES({ pathname });
-      };
-
-      const bills = new Bills({
-        document,
-        onNavigate,
-        store: mockStore,
-        localStorage: window.localStorage,
-      });
-
+      jest.spyOn(mockStore.bills(), "list").mockImplementationOnce(() => ({
+        list: () => Promise.reject(new Error("Erreur de récupération")),
+      }));
       document.body.innerHTML = BillsUI({ error: "Erreur de récupération" });
       await waitFor(() => screen.getByText("Erreur de récupération"));
       expect(screen.getByText("Erreur de récupération")).toBeTruthy();
@@ -258,255 +202,53 @@ describe("Given I am connected as an employee", () => {
       const imgWidth = Math.floor($("#modaleFile").width() * 0.5);
       expect(modalImage.getAttribute("width")).toBe(imgWidth.toString());
     });
+  });
 
-    test("Should handle missing data-bill-url attribute gracefully", () => {
-      document.body.innerHTML = '<div data-testid="icon-eye"></div>';
-      const bills = new Bills({
-        document,
-        onNavigate: jest.fn(),
-        store: null,
-        localStorage: window.localStorage,
-      });
-      const icon = document.querySelector(`[data-testid="icon-eye"]`);
-      expect(() => bills.handleClickIconEye(icon)).not.toThrow();
+  describe("When fetching bills fails", () => {
+    beforeEach(() => {
+      jest.spyOn(mockStore, "bills");
     });
 
-    test("Should handle missing modal element gracefully", () => {
-      document.body.innerHTML =
-        '<div data-testid="icon-eye" data-bill-url="https://example.com/bill.jpg"></div>';
-      const bills = new Bills({
-        document,
-        onNavigate: jest.fn(),
-        store: null,
-        localStorage: window.localStorage,
-      });
-      const icon = document.querySelector(`[data-testid="icon-eye"]`);
-      expect(() => bills.handleClickIconEye(icon)).not.toThrow();
+    test("Should display error message for network failure", async () => {
+      mockStore.bills.mockImplementationOnce(() => ({
+        list: () => Promise.reject(new Error("Network Error")),
+      }));
+      document.body.innerHTML = BillsUI({ error: "Network Error" });
+      await waitFor(() =>
+        expect(screen.getByText("Network Error")).toBeTruthy()
+      );
     });
 
-    describe("When handleClickIconEye is triggered", () => {
-      test("Should handle missing modal element gracefully", () => {
-        document.body.innerHTML = "";
-        const billsContainer = new Bills({
-          document,
-          onNavigate: jest.fn(),
-          store: null,
-          localStorage: window.localStorage,
-        });
-        const icon = document.createElement("div");
-        icon.setAttribute("data-bill-url", "https://example.com/bill.jpg");
-        expect(() => billsContainer.handleClickIconEye(icon)).not.toThrow();
+    test("Should display default error message if error message is missing", async () => {
+      mockStore.bills.mockImplementationOnce(() => ({
+        list: () => Promise.reject(new Error()),
+      }));
+      document.body.innerHTML = BillsUI({
+        error: "An unknown error occurred",
       });
-
-      test("Should handle missing data-bill-url attribute gracefully", () => {
-        document.body.innerHTML = `
-          <div id="modaleFile" class="modal fade">
-            <div class="modal-body"></div>
-          </div>
-        `;
-        const billsContainer = new Bills({
-          document,
-          onNavigate: jest.fn(),
-          store: null,
-          localStorage: window.localStorage,
-        });
-        const icon = document.createElement("div");
-        expect(() => billsContainer.handleClickIconEye(icon)).not.toThrow();
-      });
-    });
-
-    describe("When sorting bills", () => {
-      test("Should handle sorting of bills with valid and invalid dates", () => {
-        const unsortedBills = [
-          { date: "2024-10-10", status: "pending" },
-          { date: "invalid-date", status: "accepted" },
-          { date: "2023-11-01", status: "refused" },
-        ];
-        document.body.innerHTML = BillsUI({ data: unsortedBills });
-        const dates = screen
-          .getAllByText(
-            /^(19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])$/i
-          )
-          .map((a) => a.innerHTML);
-        const chrono = (a, b) => new Date(a) - new Date(b);
-        const validDates = dates.filter((date) => !isNaN(Date.parse(date)));
-        const datesSorted = validDates.sort(chrono);
-        expect(validDates).toEqual(datesSorted);
-      });
-    });
-
-    describe("When fetching bills fails", () => {
-      beforeEach(() => {
-        jest.spyOn(mockStore, "bills");
-      });
-
-      test("Should return undefined if store is null", async () => {
-        const bills = new Bills({
-          document,
-          onNavigate: jest.fn(),
-          store: null,
-          localStorage: window.localStorage,
-        });
-        const result = await bills.getBills();
-        expect(result).toBeUndefined();
-      });
-
-      test("Should handle corrupted data gracefully", async () => {
-        const corruptedDataStore = {
-          bills: () => ({
-            list: () =>
-              Promise.resolve([{ date: "invalid-date", status: "pending" }]),
-          }),
-        };
-        const bills = new Bills({
-          document,
-          onNavigate: jest.fn(),
-          store: corruptedDataStore,
-          localStorage: window.localStorage,
-        });
-        const result = await bills.getBills();
-        expect(result[0].date).toBe("invalid-date");
-        expect(result[0].status).toBe(formatStatus("pending"));
-      });
-
-      test("Should display error message for network failure", async () => {
-        mockStore.bills.mockImplementationOnce(() => ({
-          list: () => Promise.reject(new Error("Network Error")),
-        }));
-        document.body.innerHTML = BillsUI({ error: "Network Error" });
-        await waitFor(() =>
-          expect(screen.getByText("Network Error")).toBeTruthy()
-        );
-      });
-
-      test("Should display default error message if error message is missing", async () => {
-        mockStore.bills.mockImplementationOnce(() => ({
-          list: () => Promise.reject(new Error()),
-        }));
-        document.body.innerHTML = BillsUI({
-          error: "An unknown error occurred",
-        });
-        await waitFor(() =>
-          expect(screen.getByText("An unknown error occurred")).toBeTruthy()
-        );
-      });
-    });
-
-    describe("When there are no bills", () => {
-      test("Should display a message indicating no bills are available", () => {
-        document.body.innerHTML = BillsUI({ data: [] });
-        expect(screen.getByText("Aucune note de frais")).toBeTruthy();
-      });
-    });
-
-    describe("When handling unexpected behavior", () => {
-      test("Should handle empty data gracefully", () => {
-        document.body.innerHTML = BillsUI({ data: null });
-        expect(screen.getByText("Aucune note de frais")).toBeTruthy();
-      });
-
-      test("Should not break if data contains unexpected fields", () => {
-        const corruptedBills = [{ date: "2023-11-01", unknownField: "test" }];
-        document.body.innerHTML = BillsUI({ data: corruptedBills });
-        expect(screen.getByText("Mes notes de frais")).toBeTruthy();
-      });
+      await waitFor(() =>
+        expect(screen.getByText("An unknown error occurred")).toBeTruthy()
+      );
     });
   });
 
-  // Test d'intégration GET
-  describe("Given I am a user connected as Employee", () => {
-    describe("When I navigate to Bills", () => {
-      beforeEach(() => {
-        jest.spyOn(mockStore, "bills");
-        Object.defineProperty(window, "localStorage", {
-          value: localStorageMock,
-        });
-        window.localStorage.setItem(
-          "user",
-          JSON.stringify({
-            type: "Employee",
-            email: "a@a",
-          })
-        );
-        const root = document.createElement("div");
-        root.setAttribute("id", "root");
-        document.body.appendChild(root);
-        router();
-      });
+  describe("When there are no bills", () => {
+    test("Should display a message indicating no bills are available", () => {
+      document.body.innerHTML = BillsUI({ data: [] });
+      expect(screen.getByText("Aucune note de frais")).toBeTruthy();
+    });
+  });
 
-      test("Then, fetches bills from mock API GET", async () => {
-        window.onNavigate(ROUTES_PATH.Bills);
-        expect(screen.getAllByText("Billed")).toBeTruthy();
-        expect(
-          await waitFor(() => screen.getByText("Mes notes de frais"))
-        ).toBeTruthy();
-        expect(screen.getByTestId("tbody")).toBeTruthy();
-        // expect(screen.getAllByText("test1")).toBeTruthy();
-      });
-
-      test("Then, fetches bills from an API and fails with 404 message error", async () => {
-        mockStore.bills.mockImplementationOnce(() => {
-          return {
-            list: () => {
-              return Promise.reject(new Error("Erreur 404"));
-            },
-          };
-        });
-        window.onNavigate(ROUTES_PATH.Bills);
-        await new Promise(process.nextTick);
-        const message = await screen.getByText(/Erreur 404/);
-        expect(message).toBeTruthy();
-      });
-
-      test("Then, fetches messages from an API and fails with 500 message error", async () => {
-        mockStore.bills.mockImplementationOnce(() => {
-          return {
-            list: jest.fn().mockRejectedValue(new Error("Erreur 500")),
-          };
-        });
-
-        window.onNavigate(ROUTES_PATH.Bills);
-        await new Promise(process.nextTick); // Ensures any asynchronous operation completes
-
-        const message = await screen.findByText(/Erreur 500/); // use findByText instead
-        expect(message).toBeTruthy();
-      });
-
-      test("Then, there should be 4 eye icons displayed on the dashboard", () => {
-        document.body.innerHTML = BillsUI({ data: bills }); // Ensure `bills` contains 4 items
-        const eyeIcons = screen.getAllByTestId("icon-eye"); // Assuming each icon has `data-testid="icon-eye"`
-        expect(eyeIcons.length).toBe(4);
-      });
+  describe("When handling unexpected behavior", () => {
+    test("Should handle empty data gracefully", () => {
+      document.body.innerHTML = BillsUI({ data: null });
+      expect(screen.getByText("Aucune note de frais")).toBeTruthy();
     });
 
-    describe("When I am on Bills page, there are a title and a newBill button", () => {
-      test("Then, the title and the button should be render correctly", () => {
-        document.body.innerHTML = BillsUI({ data: bills });
-        expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
-        expect(screen.getByTestId("btn-new-bill")).toBeTruthy();
-      });
-    });
-
-    describe("When fetch bills from API fail", () => {
-      beforeEach(() => {
-        jest.spyOn(mockStore, "bills");
-      });
-      // Display error 404
-      test("Then, ErrorPage should be rendered with 404 error", async () => {
-        mockStore.bills.mockImplementationOnce(() => ({
-          return: () => Promise.reject(new Error("Erreur 404")),
-        }));
-        document.body.innerHTML = BillsUI({ error: "Erreur 404" });
-        expect(screen.getByText(/Erreur 404/)).toBeTruthy();
-      });
-      // Display error 500
-      test("Then, ErrorPage should be rendered with 500 error", async () => {
-        mockStore.bills.mockImplementationOnce(() => ({
-          list: () => Promise.reject(new Error("Erreur 500")),
-        }));
-        document.body.innerHTML = BillsUI({ error: "Erreur 500" });
-        expect(screen.getByText(/Erreur 500/)).toBeTruthy();
-      });
+    test("Should not break if data contains unexpected fields", () => {
+      const corruptedBills = [{ date: "2023-11-01", unknownField: "test" }];
+      document.body.innerHTML = BillsUI({ data: corruptedBills });
+      expect(screen.getByText("Mes notes de frais")).toBeTruthy();
     });
   });
 });

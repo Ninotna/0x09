@@ -78,8 +78,8 @@ export default class {
             });
           // .sort((a, b) => new Date(a.date) - new Date(b.date)); // Sorting by ascending date
           // .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sorts by descending order
-          console.log("length", bills.length);
-          console.log(bills);
+          // console.log("length", bills.length);
+          // console.log(bills);
           return bills;
         });
     }
