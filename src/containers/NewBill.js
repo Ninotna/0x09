@@ -23,13 +23,13 @@ export default class NewBill {
     const file = this.document.querySelector(`input[data-testid="file"]`)
       .files[0];
     const fileName = file.name;
-    console.log("Selected file name:", fileName); // Debugging statement
+    // console.log("Selected file name:", fileName); // Debugging statement
     // new variables needed to check image format
     const fileInput = this.document.querySelector(`input[data-testid="file"]`);
     const fileAcceptedFormats = ["jpg", "jpeg", "png"];
     const fileNameParts = fileName.split(".");
     const fileExtension = fileNameParts[fileNameParts.length - 1].toLowerCase();
-    console.log("File extension:", fileExtension); // Debugging statement
+    // console.log("File extension:", fileExtension); // Debugging statement
     this.isImgFormatValid = false;
     // if there are at least two pieces to the file name, continue the check
     if (fileNameParts.length > 1) {
@@ -38,7 +38,7 @@ export default class NewBill {
         ? (this.isImgFormatValid = true)
         : (this.isImgFormatValid = false);
     }
-    console.log("isImgFormatValid:", this.isImgFormatValid); // Debugging statement
+    // console.log("isImgFormatValid:", this.isImgFormatValid); // Debugging statement
     if (!this.isImgFormatValid) {
       // if image format is not valid ...
       fileInput.value = ""; // ... remove file from the input
@@ -74,13 +74,10 @@ export default class NewBill {
         .catch((error) => console.error(error));
     }
   };
-  handleSubmit = (e) => {
+  handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(
-      'e.target.querySelector(`input[data-testid="datepicker"]`).value',
-      e.target.querySelector(`input[data-testid="datepicker"]`).value
-    );
-    const email = JSON.parse(localStorage.getItem("user")).email;
+
+    const email = JSON.parse(localStorage.getItem("user"))?.email || "";
     const bill = {
       email,
       type: e.target.querySelector(`select[data-testid="expense-type"]`).value,
@@ -99,26 +96,19 @@ export default class NewBill {
       fileName: this.fileName,
       status: "pending",
     };
-    if (this.isImgFormatValid) {
-      // if image format is valid ...
-      // ... move in handleSubmit to upload image and create new bill only when image format is valid and form is complete
-      this.store
-        .bills()
-        .create({
+
+    if (this.isImgFormatValid && this.fileUrl) {
+      try {
+        await this.store.bills().create({
           data: this.formData,
-          headers: {
-            noContentType: true,
-          },
-        })
-        .then(({ fileUrl, key }) => {
-          console.log(fileUrl);
-          this.billId = key;
-          this.fileUrl = fileUrl;
-        })
-        .then(() => {
-          this.updateBill(bill);
-        })
-        .catch((error) => console.error(error));
+          headers: { noContentType: true },
+        });
+        this.updateBill(bill);
+      } catch (error) {
+        console.error("Error creating bill:", error);
+      }
+    } else {
+      alert("Invalid image format or missing file.");
     }
   };
 
