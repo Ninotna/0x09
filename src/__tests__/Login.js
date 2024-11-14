@@ -4,8 +4,8 @@
 
 import LoginUI from "../views/LoginUI";
 import Login from "../containers/Login.js";
-import { ROUTES } from "../constants/routes";
-import { fireEvent, screen } from "@testing-library/dom";
+import { ROUTES, ROUTES_PATH } from "../constants/routes";
+import { fireEvent, screen, waitFor } from "@testing-library/dom";
 
 describe("Given that I am a user on login page", () => {
   describe("When I do not fill fields and I click on employee button Login In", () => {
@@ -222,39 +222,55 @@ describe("Given that I am a user on login page", () => {
       );
     });
 
-    test("When createUser() is called, it should call store.users().create()", async () => {
-      const mockStore = {
-        users: () => ({
-          create: jest.fn(() => Promise.resolve({})),
-        }),
-        login: jest.fn(),
+    test("It should renders HR dashboard page", () => {
+      expect(screen.queryByText("Validations")).toBeTruthy();
+    });
+  });
+
+  describe("When I do fill fields in correct format and I click on admin button Login In", () => {
+    test("Then it should navigate to the Bills page", async () => {
+      document.body.innerHTML = LoginUI();
+
+      // Fonction espionne onNavigate ici
+      const onNavigate = jest.fn();
+
+      // Simulate successful login as an Employee
+      const inputData = {
+        email: "johndoe@email.com",
+        password: "azerty",
       };
+      const form = screen.getByTestId("form-employee");
+      fireEvent.change(screen.getByTestId("employee-email-input"), {
+        target: { value: inputData.email },
+      });
+      fireEvent.change(screen.getByTestId("employee-password-input"), {
+        target: { value: inputData.password },
+      });
+      let PREVIOUS_LOCATION = "";
+
+      const store = {
+        login: jest.fn().mockResolvedValue({ jwt: "yourJwtToken" }),
+      };
+
       const login = new Login({
         document,
         localStorage: window.localStorage,
-        onNavigate: jest.fn(),
-        store: mockStore,
+        onNavigate,
+        PREVIOUS_LOCATION,
+        store,
       });
 
-      const user = {
-        type: "Employee",
-        email: "newuser@example.com",
-        password: "password",
-      };
-      await login.createUser(user);
+      await login.login(inputData); // Await pour attendre que la promesse soit résolue
 
-      expect(mockStore.users().create).toHaveBeenCalledWith({
-        data: JSON.stringify({
-          type: "Employee",
-          name: "newuser",
-          email: "newuser@example.com",
-          password: "password",
-        }),
+      fireEvent.submit(form);
+
+      await waitFor(() => {
+        // La fonction onNavigate est appelée avec la route correcte
+        expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH.Bills);
+
+        // Attachement de la fonction onNavigate à window pour qu'elle puisse être appelée
+        window.onNavigate = onNavigate;
       });
-    });
-
-    test("It should renders HR dashboard page", () => {
-      expect(screen.queryByText("Validations")).toBeTruthy();
     });
   });
 });
