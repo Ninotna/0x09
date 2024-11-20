@@ -133,4 +133,51 @@ describe("Given I am connected as an employee", () => {
       expect(screen.getByText("Mes notes de frais")).toBeTruthy();
     });
   });
+
+  test("Then clicking on 'Nouvelle note de frais' should navigate to the new bill form", () => {
+    const onNavigate = (pathname) => {
+      document.body.innerHTML = ROUTES({ pathname });
+    };
+    const bills = new Bills({
+      document,
+      onNavigate,
+      store: mockStore,
+      localStorage: window.localStorage,
+    });
+    document.body.innerHTML = BillsUI({ data: bills });
+    const buttonNewBill = screen.getByTestId("btn-new-bill");
+    const handleClickNewBill = jest.fn(bills.handleClickNewBill);
+    buttonNewBill.addEventListener("click", handleClickNewBill);
+    fireEvent.click(buttonNewBill);
+    expect(handleClickNewBill).toHaveBeenCalled();
+    expect(screen.getByText("Envoyer une note de frais")).toBeTruthy();
+  });
+
+  test("Then clicking on the eye icon should open the modal with the justificatif image", async () => {
+    document.body.innerHTML = BillsUI({ data: bills });
+    const billsContainer = new Bills({
+      document,
+      onNavigate: (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname });
+      },
+      store: mockStore,
+      localStorage: window.localStorage,
+    });
+    const eyeIcon = screen.getAllByTestId("icon-eye")[0];
+    const billsData = bills;
+    eyeIcon.setAttribute("data-bill-url", billsData[0].fileUrl);
+    const handleClickIconEye = jest.fn((icon) =>
+      billsContainer.handleClickIconEye(icon)
+    );
+    eyeIcon.addEventListener("click", () => handleClickIconEye(eyeIcon));
+    fireEvent.click(eyeIcon);
+    expect(handleClickIconEye).toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByText("Justificatif")).toBeTruthy());
+    const modalImage = document.querySelector("#modaleFile .modal-body img");
+    expect(modalImage).toBeTruthy();
+    expect(modalImage.getAttribute("src")).toBe(bills[0].fileUrl);
+    expect(modalImage.getAttribute("alt")).toBe("Bill");
+    const imgWidth = Math.floor($("#modaleFile").width() * 0.5);
+    expect(modalImage.getAttribute("width")).toBe(imgWidth.toString());
+  });
 });
