@@ -1,7 +1,7 @@
 import { ROUTES_PATH } from "../constants/routes.js";
 export let PREVIOUS_LOCATION = "";
 
-// we use a class so as to test its methods in e2e tests
+// Classe pour gérer les soumissions d'utilisateur
 export default class Login {
   constructor({
     document,
@@ -15,97 +15,109 @@ export default class Login {
     this.onNavigate = onNavigate;
     this.PREVIOUS_LOCATION = PREVIOUS_LOCATION;
     this.store = store;
+
+    // Initialisation des formulaires
+    this.initForms();
+  }
+
+  initForms() {
     const formEmployee = this.document.querySelector(
       `form[data-testid="form-employee"]`
     );
-    formEmployee.addEventListener("submit", this.handleSubmitEmployee);
     const formAdmin = this.document.querySelector(
       `form[data-testid="form-admin"]`
     );
-    formAdmin.addEventListener("submit", this.handleSubmitAdmin);
+
+    formEmployee.addEventListener("submit", (e) =>
+      this.handleSubmit(e, "Employee", ROUTES_PATH["Bills"])
+    );
+    formAdmin.addEventListener("submit", (e) =>
+      this.handleSubmit(e, "Admin", ROUTES_PATH["Dashboard"])
+    );
   }
-  handleSubmitEmployee = (e) => {
+
+  async handleSubmit(e, userType, navigateTo) {
     e.preventDefault();
+
+    // Collecte des informations utilisateur
     const user = {
-      type: "Employee",
-      email: e.target.querySelector(`input[data-testid="employee-email-input"]`)
-        .value,
+      type: userType,
+      email: e.target.querySelector(
+        `input[data-testid="${userType.toLowerCase()}-email-input"]`
+      ).value,
       password: e.target.querySelector(
-        `input[data-testid="employee-password-input"]`
+        `input[data-testid="${userType.toLowerCase()}-password-input"]`
       ).value,
       status: "connected",
     };
-    this.localStorage.setItem("user", JSON.stringify(user));
-    this.login(user)
-      .catch((err) => this.createUser(user))
-      .then(() => {
-        this.onNavigate(ROUTES_PATH["Bills"]);
-        this.PREVIOUS_LOCATION = ROUTES_PATH["Bills"];
-        PREVIOUS_LOCATION = this.PREVIOUS_LOCATION;
-        this.document.body.style.backgroundColor = "#fff";
-      });
-  };
 
-  handleSubmitAdmin = (e) => {
-    e.preventDefault();
-    const user = {
-      // Issue 2: Modification du type de l'utilisateur (employee -> Admin) + modification des data-testid
-      type: "Admin",
-      email: e.target.querySelector(`input[data-testid="admin-email-input"]`)
-        .value,
-      password: e.target.querySelector(
-        `input[data-testid="admin-password-input"]`
-      ).value,
-      status: "connected",
-    };
+    // Stockage local
     this.localStorage.setItem("user", JSON.stringify(user));
-    this.login(user)
-      .catch((err) => this.createUser(user))
-      .then(() => {
-        this.onNavigate(ROUTES_PATH["Dashboard"]);
-        this.PREVIOUS_LOCATION = ROUTES_PATH["Dashboard"];
-        PREVIOUS_LOCATION = this.PREVIOUS_LOCATION;
-        document.body.style.backgroundColor = "#fff";
-      });
-  };
 
-  // not need to cover this function by tests
-  login = (user) => {
-    if (this.store) {
-      return this.store
-        .login(
-          JSON.stringify({
-            email: user.email,
-            password: user.password,
-          })
-        )
-        .then(({ jwt }) => {
-          localStorage.setItem("jwt", jwt);
-        });
-    } else {
-      return null;
+    try {
+      // Tentative de connexion
+      await this.login(user);
+      this.finalizeLogin(navigateTo);
+    } catch (err) {
+      // Si login échoue, vérifier et créer utilisateur si nécessaire
+      const userExists = await this.checkUserExists(user.email);
+      if (!userExists) {
+        await this.createUser(user);
+        this.finalizeLogin(navigateTo);
+      } else {
+        console.error("Erreur : utilisateur déjà existant.");
+        alert("Utilisateur déjà existant. Veuillez vérifier vos informations.");
+      }
     }
-  };
+  }
 
-  // not need to cover this function by tests
-  createUser = (user) => {
+  async login(user) {
     if (this.store) {
-      return this.store
-        .users()
-        .create({
-          data: JSON.stringify({
-            type: user.type,
-            name: user.email.split("@")[0],
-            email: user.email,
-            password: user.password,
-          }),
+      const response = await this.store.login(
+        JSON.stringify({
+          email: user.email,
+          password: user.password,
         })
-        .then(() => {
-          console.log(`User with ${user.email} is created`);
-          return this.login(user);
-        });
+      );
+      localStorage.setItem("jwt", response.jwt);
     } else {
-      return null;
+      throw new Error("Store non disponible");
     }
-  };
+  }
+
+  async createUser(user) {
+    if (this.store) {
+      await this.store.users().create({
+        data: JSON.stringify({
+          type: user.type,
+          name: user.email.split("@")[0],
+          email: user.email,
+          password: user.password,
+        }),
+      });
+      console.log(`Utilisateur créé : ${user.email}`);
+      await this.login(user);
+    } else {
+      throw new Error("Store non disponible");
+    }
+  }
+
+  async checkUserExists(email) {
+    if (this.store) {
+      try {
+        await this.store.users().get({ selector: email });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  }
+
+  finalizeLogin(navigateTo) {
+    this.onNavigate(navigateTo);
+    this.PREVIOUS_LOCATION = navigateTo;
+    PREVIOUS_LOCATION = this.PREVIOUS_LOCATION;
+    this.document.body.style.backgroundColor = "#fff";
+  }
 }
