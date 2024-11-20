@@ -46,7 +46,7 @@ export default class NewBill {
       fileInput.classList.add("is-invalid"); // Ajoute la classe is-invalid pour indiquer une erreur à l'utilisateur
       fileInput.classList.remove("blue-border"); // Supprime la classe blue-border
       alert(
-        "Le format de votre fichier n'est pas pris en charge.\n" +
+        "Attention! Le format de votre fichier n'est pas pris en charge.\n" +
           "Seuls les formats .jpg, .jpeg, .png sont acceptés."
       ); // Affiche un message d'erreur à l'utilisateur
     } else {
