@@ -6,11 +6,11 @@ import Actions from "./Actions.js";
 const row = (bill) => {
   return `
     <tr data-testid="bill-item">
-      <td>${bill.type}</td>
-      <td>${bill.name}</td>
-      <td>${bill.date}</td>
-      <td>${bill.amount} €</td>
-      <td>${bill.status}</td>
+      <td data-testid="type">${bill.type}</td>
+      <td data-testid="name">${bill.name}</td>
+      <td data-testid="bill-date">${bill.date}</td>
+      <td data-testid="amount">${bill.amount} €</td>
+      <td data-testid="status">${bill.status}</td>
       <td>
         ${Actions(bill.fileUrl)}
       </td>
@@ -28,7 +28,14 @@ export default ({ data: bills, loading, error }) => {
     return `
       <div class='layout'>
         ${VerticalLayout(120)}
-        ${ErrorPage(error)}
+        <div class='content'>
+          <div class='content-header'>
+            <div class='content-title'> Mes notes de frais </div>
+          </div>
+          <div id="data-table">
+            <p>${error}</p>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -89,7 +96,7 @@ export default ({ data: bills, loading, error }) => {
         <div id="data-table">
           <table id="example" class="table table-striped" style="width:100%">
             <thead>
-              <tr>
+              <tr data-testid="bill">
                 <th>Type</th>
                 <th>Nom</th>
                 <th>Date</th>
