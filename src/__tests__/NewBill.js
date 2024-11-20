@@ -270,9 +270,8 @@ describe("Given I am connected as an employee", () => {
         });
 
         expect(window.alert).toHaveBeenCalledWith(
-          "Attention! Le format de votre fichier n'est pas supporté." +
-            "\n" +
-            "Seuls les .jpg, .jpeg, .png sont acceptés."
+          "Attention! Le format de votre fichier n'est pas pris en charge.\n" +
+            "Seuls les formats .jpg, .jpeg, .png sont acceptés."
         );
         expect(inputFile.value).toBe(""); // Input should be cleared
       });
@@ -298,9 +297,8 @@ describe("Given I am connected as an employee", () => {
         });
 
         expect(alertMock).toHaveBeenCalledWith(
-          "Attention! Le format de votre fichier n'est pas supporté." +
-            "\n" +
-            "Seuls les .jpg, .jpeg, .png sont acceptés."
+          "Attention! Le format de votre fichier n'est pas pris en charge.\n" +
+            "Seuls les formats .jpg, .jpeg, .png sont acceptés."
         );
         expect(inputFile.value).toBe(""); // Ensures file input is reset
         alertMock.mockRestore();
